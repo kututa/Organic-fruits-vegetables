@@ -1,4 +1,5 @@
 <?php
+if (session_status() === PHP_SESSION_NONE) session_start();
 // Dynamic index page - preserves exact HTML structure but loads products from DB
 require_once __DIR__ . '/admin/includes/db.php';
 
@@ -49,6 +50,8 @@ function render_product_card($p){
     $short = mb_strlen($desc) > 120 ? mb_substr($desc,0,117) . '...' : $desc;
     $price = isset($p['price']) ? number_format((float)$p['price'],2) : '0.00';
     $categoryLabel = escape($p['category_name'] ?? '');
+    $product_id = isset($p['product_id']) ? (int)$p['product_id'] : 0;
+    $image = escape($img);
 
     return <<<HTML
 <div class="col-md-6 col-lg-4 col-xl-3">
@@ -62,7 +65,15 @@ function render_product_card($p){
             <p>{$short}</p>
             <div class="d-flex justify-content-between flex-lg-wrap">
                 <p class="text-dark fs-5 fw-bold mb-0">Ksh {$price} / kg</p>
-                <a href="#" class="btn border border-secondary rounded-pill px-3 text-primary"><i class="fa fa-shopping-bag me-2 text-primary"></i> Add to cart</a>
+                <form method="post" action="add_to_cart.php" style="margin:0;">
+                    <input type="hidden" name="product_id" value="{$product_id}">
+                    <input type="hidden" name="name" value="{$name}">
+                    <input type="hidden" name="price" value="{$price}">
+                    <input type="hidden" name="image" value="{$image}">
+                    <button type="submit" class="btn border border-secondary rounded-pill px-3 text-primary">
+                        <i class="fa fa-shopping-bag me-2 text-primary"></i> Add to cart
+                    </button>
+                </form>
             </div>
         </div>
     </div>
@@ -150,9 +161,19 @@ HTML;
                         </div>
                         <div class="d-flex m-3 me-0">
                             <button class="btn-search btn border border-secondary btn-md-square rounded-circle bg-white me-4" data-bs-toggle="modal" data-bs-target="#searchModal"><i class="fas fa-search text-primary"></i></button>
-                            <a href="#" class="position-relative me-4 my-auto">
+                            <a href="cart.php" class="position-relative me-4 my-auto">
                                 <i class="fa fa-shopping-bag fa-2x"></i>
-                                <span class="position-absolute bg-secondary rounded-circle d-flex align-items-center justify-content-center text-dark px-1" style="top: -5px; left: 15px; height: 20px; min-width: 20px;">3</span>
+                                <span class="position-absolute bg-secondary rounded-circle d-flex align-items-center justify-content-center text-dark px-1" style="top: -5px; left: 15px; height: 20px; min-width: 20px;">
+                                    <?php
+                                    $cart_count = 0;
+                                    if (isset($_SESSION['cart']) && is_array($_SESSION['cart'])) {
+                                        foreach ($_SESSION['cart'] as $item) {
+                                            $cart_count += isset($item['quantity']) ? (int)$item['quantity'] : 1;
+                                        }
+                                    }
+                                    echo $cart_count;
+                                    ?>
+                                </span>
                             </a>
                             <a href="#" class="my-auto">
                                 <i class="fas fa-user fa-2x"></i>
@@ -361,9 +382,15 @@ if ($vegCategoryId) {
                             <p><?= htmlspecialchars($row['description']) ?></p>
                             <div class="d-flex justify-content-between flex-lg-wrap">
                                 <p class="text-dark fs-5 fw-bold mb-0">Ksh<?= number_format($row['price'], 2) ?> / kg</p>
-                                <a href="add_to_cart.php?product_id=<?= $row['product_id'] ?>" class="btn border border-secondary rounded-pill px-3 text-primary">
-                                    <i class="fa fa-shopping-bag me-2 text-primary"></i> Add to cart
-                                </a>
+                                <form method="post" action="add_to_cart.php" style="margin:0;">
+                                    <input type="hidden" name="product_id" value="<?= (int)$row['product_id'] ?>">
+                                    <input type="hidden" name="name" value="<?= htmlspecialchars($row['name']) ?>">
+                                    <input type="hidden" name="price" value="<?= number_format($row['price'],2,'.','') ?>">
+                                    <input type="hidden" name="image" value="<?= htmlspecialchars($row['image_path']) ?>">
+                                    <button type="submit" class="btn border border-secondary rounded-pill px-3 text-primary">
+                                        <i class="fa fa-shopping-bag me-2 text-primary"></i> Add to cart
+                                    </button>
+                                </form>
                             </div>
                         </div>
                     </div>
