@@ -185,12 +185,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['product_action'])) {
     }
   } else {
     if (!empty($fields)){
-      $colsSql = implode(', ', array_map(function($c){ return "`$c`"; }, $fields));
-      $placeholders = rtrim(str_repeat('?,', count($fields)), ',');
-      $sql = "INSERT INTO `products` ($colsSql) VALUES ($placeholders)";
-      $stmt = $pdo->prepare($sql);
-      $stmt->execute($values);
-      set_flash('Product added successfully', 'success');
+      // Prevent duplicate: check if product with same name and category exists
+      $nameIdx = array_search($dbNameCol, $fields);
+      $catIdx = array_search($dbCategoryCol, $fields);
+      $nameVal = $nameIdx !== false ? $values[$nameIdx] : null;
+      $catVal = $catIdx !== false ? $values[$catIdx] : null;
+      $check = $pdo->prepare("SELECT COUNT(*) FROM products WHERE name = ? AND category_id = ?");
+      $check->execute([$nameVal, $catVal]);
+      if ($check->fetchColumn() == 0) {
+        $colsSql = implode(', ', array_map(function($c){ return "`$c`"; }, $fields));
+        $placeholders = rtrim(str_repeat('?,', count($fields)), ',');
+        $sql = "INSERT INTO `products` ($colsSql) VALUES ($placeholders)";
+        $stmt = $pdo->prepare($sql);
+        $stmt->execute($values);
+        set_flash('Product added successfully', 'success');
+      } else {
+        set_flash('Duplicate product: A product with this name and category already exists.', 'warning');
+      }
     } else {
       set_flash('No product fields matched database columns. Nothing was saved.', 'warning');
     }
